@@ -1,0 +1,1 @@
+"0","google <- read_csv(""Data/Google-trends.csv"", show_col_types = FALSE)"

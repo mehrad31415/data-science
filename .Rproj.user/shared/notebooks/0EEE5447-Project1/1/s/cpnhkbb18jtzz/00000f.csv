@@ -1,0 +1,6 @@
+"0","final %>%"
+"0","  pivot_longer(!label & !year, names_to = ""cause"", values_to = ""count"") %>%"
+"0","  mutate (year=as.numeric(year)) %>%"
+"0","  ggplot (mapping=aes(x=year,y=count, color= cause)) + "
+"0","  geom_line() + "
+"0","  facet_grid(vars(label), vars(cause))"

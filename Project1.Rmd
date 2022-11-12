@@ -1,0 +1,227 @@
+---
+title: "Project1"
+author: "Mehrad Haghshenas"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Research question: 
+
+What are the leading causes of death in the US?
+
+## Background:
+
+It is found that “the news media significantly misrepresent the
+prevalence of leading causes of death and their risk factors” (e.g. Frost et
+al. 842).
+
+### 0) Data :
+
+There are three data sets on specific causes of death (by year) in the US taken from three
+different sources: Google Trends, US Centre for Disease Control, and
+The New York Times. 
+
+### 1) Importing the necessary libraries. 
+
+```{r}
+library (tidyverse)
+library (ggrepel)
+```
+
+### 2) Tidying each dataset.
+
+#### 2.1) cdc: 
+
+First we read the CDC data set and store it in a variable. 
+
+```{r}
+cdc <- read_delim("Data/CDC.txt", delim = "\t", show_col_types = FALSE)
+```
+
+As we can see, the years are as column names and the causes of death are the row names. We want to make the causes the column names and the years as row names. In other words we want to transpose our data set. The reason for doing this is that further we will see that the "Google trends" data set has causes as the column names and so we want to make this change so that our data sets have the same structure. (we could have not changed the "cdc" data set and "transposed" the "Google trends" data set. However, it is more convenient to have the diseases as the column names and the year as the observation label given that year is a numeric value.)
+
+```{r}
+dummy <- as.data.frame(cdc)
+df_cdc  <- data.frame(t(dummy [,-1]))
+colnames(df_cdc) <- dummy[,1]
+df_cdc <- df_cdc %>% rownames_to_column(var = "year")
+```
+
+In the next step I have made a new column named "cancer" which catches (sums up) all the values of the two columns "cancer_all" and "cancer_breast" per year. Also, I have renamed the "loresp" and "influpneu" column names to "respiratory" and "pneumonia" respectively. Furthermore, I have created a column named "homicide" which is the sum of all values inside the columns "homicide_all" and "homicide_legmil" per year. Ultimately, I have discarded the columns "homicide_all", "homicide_legmil", "cancer_all", and "cancer_breast".I have added a last column with the label "cdc" for all data records. This is done for the separation of the data records between the three data sets when we join them to one final data set. 
+
+```{r}
+df_cdc <- df_cdc %>% 
+  rowwise(year) %>% 
+  mutate (cancer = sum(c_across(cancer_all:cancer_breast))) %>%
+  rename (respiratory= loresp, pneumonia = influpneu) %>%
+  mutate (homicide = sum(c_across(homicide_all:homicide_legmil)))
+
+
+cdc <- df_cdc %>% 
+  select (- (starts_with("homicide_") | starts_with("cancer_") )) %>% 
+  mutate (label = "cdc") 
+cdc <- as_tibble(cdc)
+```
+
+
+#### 2.2) Google trends:
+
+We first read the data set and store it in a variable. 
+
+```{r}
+google <- read_csv("Data/Google-trends.csv", show_col_types = FALSE)
+```
+
+
+To tidy this data set, we have excluded the row related to the "average" values. We have further, renamed the columns "Words", "alzheimer's", "car accidents", "heart disease", and "kidney disease" to "year", "alzheimer", "accident", "heart", and "kidney" respectively. Ultimately, we have added the label "Google" to all data records.
+
+```{r}
+google <- google %>%
+  rename(year=Words, alzheimer = `alzheimer's`, accident = `car accidents`, heart = `heart disease`, kidney = `kidney disease`, 
+         respiratory = `respiratory disease`) %>%
+  filter (year != "Average") %>%
+  mutate (label = "google")
+google <- as_tibble(google)
+```
+
+#### 2.3) New York Times:
+
+First we read all the data sets from New York Times from year 1999-2016. 
+
+```{r}
+nyt <-
+  list.files(path = "Data/NYT", full.names = TRUE) %>%
+  map_df(read_csv, show_col_types = FALSE)
+```
+
+As the data indicates, the counts are concrete numbers so first of all for each year we will want to change the numbers to percentages. We further, will drop the "ID" and "count" columns. Finally, the data is reformed so that years are column names. 
+
+```{r}
+nyt <- nyt %>% group_by(year) %>% mutate (percentage = count/ sum (count)) %>% select (Words, year, percentage)
+nyt <- nyt %>% pivot_wider(names_from = year, values_from = percentage)
+```
+
+Now we reform the data set again so that the column names are the causes of death and the row names are the years. In other words, we are transposing the data set so that the structure of the data set is similar to that of "Google trends" and "cdc".
+
+```{r}
+dummy <- as.data.frame(nyt)
+df_nyt  <- data.frame(t(dummy [,-1]))
+colnames(df_nyt) <- dummy[,1]
+nyt <- df_nyt %>% rownames_to_column(var = "year")
+```
+
+As the final step we tidy the column names: 1) we sum all the "heart disease", "heart failure", and "cardiovascular disease" values per year in one column named "heart". The reason is that all these disease are related to the heart. 2) we sum all the "cancer" and "malignant neoplasms" values to one column named "cancer" because they are similar diseases. 3) "respiratory disease", "bronchitis", "emphysema", and "asthma" all fall under the "respiratory" category. 4) "unintentional injuries", "car accident", "pileup", and "car crash" are all related to "accident". 5) "stroke", "cerebrovascular diseases", "alzheimer's disease" -> "alzheimer" category. 6) "influenza", "pneumonia", and "flue" are all related to "pneumonia". 7) "kidney disease", "nephrosis", "nephritis", "nephrotic syndrome" are all related to "kidney" issues. 8) "suicide" and "self-harm" are both related to "suicide". 9) The values in the columns "homicide", "murder", "manslaughter", "assassination", "shootings", "gun violence", "knife attack", "knifing", and "lynching" are all summed up per year and have been named as the "homicide" column. 10) The values of the columns "terrorism", "terrorist", and "terror attack" are summed up and named "terrorism". 11) The "drug overdose" column has been renamed to "overdose".
+
+Ultimately, the columns which have been involved in creating other columns have been removed and the label "NYT" will be added to all rows. 
+
+```{r}
+nyt <- nyt %>% rowwise(year) %>% 
+  mutate (heart = sum(c_across(`heart disease`:`cardiovascular disease`))) %>%
+  mutate (cancer = sum(c_across(`cancer`:`malignant neoplasms`))) %>%
+  mutate (respiratory = sum(c_across(`respiratory disease`:`asthma`))) %>%
+  mutate (accident = sum(c_across(`unintentional injuries`:`car crash`))) %>%
+  mutate (alzheimer = sum(c_across(`stroke`:`alzheimer's disease`))) %>%
+  mutate (pneumonia= sum(c_across(Influenza:flu))) %>%
+  mutate (kidney= sum(c_across(`kidney disease`:`nephrotic syndrome`))) %>%
+  mutate (suicide= sum(c_across(`suicide`:`self-harm`))) %>%
+  mutate (homicide= sum(c_across(homicide:assassination)) + sum(c_across(shootings:lynching))) %>% 
+  mutate (terrorism= sum(c_across(terrorism:`terror attack`))) %>%
+  rename (overdose= `drug overdose`)
+
+nyt <- nyt%>% 
+  select (- (contains("disease") | ends_with("failure") | starts_with("malignant") | contains("bronchitis") |
+             contains("emphysema") | contains("asthma") | contains("unintentional") | contains("car ") |
+             contains("pileup") | contains("flu") | contains("neph") | contains("self") | contains("man") | 
+             contains("terrorist") | contains("terror attack") | contains("murder") | contains("assass") |
+             contains("shoot") | contains("knif") | contains("gun") | contains("lynch") | contains("drug"))) %>% 
+  mutate (label = "NYT")
+
+```
+
+
+### 3) Viewing all three data sets:
+
+```{r}
+View (nyt)
+View (cdc)
+View (google)
+```
+
+As we see all three data sets have equal column names and number of columns. In other words, the values of the data set are similarly structured. Therefore, we join them to create our final data set:
+
+```{r}
+final <- rbind(google,nyt,cdc)
+View (final)
+```
+
+
+### 4) Plotting 
+
+The data wranggling part is over now! We can plot the final data set with the following code:
+
+```{r}
+final %>%
+  pivot_longer(!label & !year, names_to = "cause", values_to = "count") %>%
+  mutate (year=as.numeric(year)) %>%
+  ggplot (mapping=aes(x=year,y=count, color= cause)) + 
+  geom_line() + 
+  facet_grid(vars(label), vars(cause))
+```
+### 5) Extra Reasoning
+
+###### Why were these choices made?
+
+1) first of all after seeing the three initial data sets, I saw that the "Google" data set had 13 different causes of death, whereas the "new york times" data set and "cdc" consisted of 39 and 18 distinctive ones. In the "Google" data set, for instance, it is impossible to separate the "pneumonia" category to the subcategories "influenza", "pneumonia", and "flue". The reason is that we do not know that how much of the percentage is allocated to each subcategory. So to make the data sets comparable, there is logically one solution: we have to make the other two datasets, "cdc" and "new york times", consist of only 13 different diseases. To do so we have to combine the numbers of the reasons of death which are somewhat related.
+
+2) In the second step, I started googling the causes of death to see which ones are related. I reached the following results:
+
+CDC: 
+
+"cancer_all" and "cancer_breast" 
+
+"loresp" ~ "respiratory" (I feel here was a misspelling or a made up word)
+
+"influpneu" ~ "pneumonia" (I feel here was a misspelling or a made up word)
+
+"homicide_all" and "homicide_legmil"
+
+New York Times:
+
+"heart disease", "heart failure", and "cardiovascular disease" 
+
+"cancer" and "malignant neoplasms"                      
+
+"respiratory disease", "bronchitis", "emphysema", and "asthma"    
+
+"unintentional injuries", "car accident", "pileup", and "car crash"
+
+"stroke", "cerebrovascular diseases", "alzheimer's disease" 
+
+"influenza", "pneumonia", and "flue"  
+
+"kidney disease", "nephrosis", "nephritis", "nephrotic syndrome" 
+
+"suicide" and "self-harm"
+
+"homicide", "murder", "manslaughter", "assassination", "shootings", "gun violence", "knife attack", "knifing", and "lynching"
+
+"terrorism", "terrorist", "terror attack"
+
+Each line above is a category of somewhat related causes of deaths. If you look at the last subcategory of the "New York Times" data set, I have divided the "terrorism" and "homicide" categories roughly. In other words, any kind of attack that does not consist of the word "terror" has fallen under the "homicide" category. However, I must say that dividing these two categories even though they have a lot of differences is not easy. For example, "knife attack" can fall into "terrorism" but I am assuming that the author by mentioning three different categories of "terrorism", "terrorist", and especially "terror attack" has caught all the terror attacks. Therefore, the columns "shootings" and other mentioned ones are not related to terrorism. (Having said all that, initially I did  put all "homicide", "murder", "manslaughter", "assassination", "shootings", "gun violence", "knife attack", "knifing", "lynching", "terrorism", "terrorist", "terror attack" under one category named "homicide". Accordingly, for the "cdc" and "google trends" data set I put "homicide" and "terrorism" into one category. So that all data sets in this case have 12 distinctive causes of death rather than 13. The plot of this scenario is named "plot1" and is in the folder "draft_plots". It seemed as the former scenario is more reasonable than this one based on the indicated reasons). In in the "draft_plots" folder there are six other plots which give good intuition about each data set separately. 
+
+3) Then we made the structure of all three datasets similar by doing the following two processes:
+3.1) making the causes of deaths as the column names and making the year of occurence as row names.
+3.2) renaming the column names so that they have the same name. For example; drug overdose == overdose 
+
+4) finally we joined the data sets. Take note that each data record has a label which shows which data set it was taken from.
+
+5) to plot the data sets, I have chosen the facet model. The reason is that I now have a grid where each plot shows the data set it is representing and the cause of death it is related to.
+
+Final note: my grouping of the causes of death and especially the "medical diseases" was based on my general knowledge and understanding. There are other, perhaps better ways to do the grouping. 
+
+### 5) Conclusion:
+
+as the plot shows, it seems that based on the "cdc" data set "heart" and "cancer" diseases are the primary mains of causes of death. Based on "google trends", "stroke" has the largest number followed by "kidney" and "cancer" respectively. Based on "New York Times", "terrorism", "homocide", and "cancer" are the three main primary causes of deaths. 
+
+The noticeable fact:
+1) cancer is one of the primary causes of deaths in all three data sets.

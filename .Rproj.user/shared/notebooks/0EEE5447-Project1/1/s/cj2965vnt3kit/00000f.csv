@@ -1,0 +1,3 @@
+"0","nyt <-"
+"0","  list.files(path = ""Data/NYT"", full.names = TRUE) %>%"
+"0","  map_df(read_csv, show_col_types = FALSE)"
