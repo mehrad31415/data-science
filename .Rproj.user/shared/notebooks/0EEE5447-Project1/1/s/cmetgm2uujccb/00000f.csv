@@ -1,4 +1,0 @@
-"0","dummy <- as.data.frame(nyt)"
-"0","df_nyt  <- data.frame(t(dummy [,-1]))"
-"0","colnames(df_nyt) <- dummy[,1]"
-"0","nyt <- df_nyt %>% rownames_to_column(var = ""year"")"

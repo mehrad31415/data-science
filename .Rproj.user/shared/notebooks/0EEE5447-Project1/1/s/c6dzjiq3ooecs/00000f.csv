@@ -1,4 +1,0 @@
-"0","dummy <- as.data.frame(cdc)"
-"0","df_cdc  <- data.frame(t(dummy [,-1]))"
-"0","colnames(df_cdc) <- dummy[,1]"
-"0","df_cdc <- df_cdc %>% rownames_to_column(var = ""year"")"

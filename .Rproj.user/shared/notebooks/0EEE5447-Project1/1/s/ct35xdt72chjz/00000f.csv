@@ -1,1 +1,0 @@
-"0","cdc <- read_delim(""Data/CDC.txt"", delim = ""\t"", show_col_types = FALSE)"

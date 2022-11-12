@@ -1,6 +1,0 @@
-"0","google <- google %>%"
-"0","  rename(year=Words, alzheimer = `alzheimer's`, accident = `car accidents`, heart = `heart disease`, kidney = `kidney disease`, "
-"0","         respiratory = `respiratory disease`) %>%"
-"0","  filter (year != ""Average"") %>%"
-"0","  mutate (label = ""google"")"
-"0","google <- as_tibble(google)"

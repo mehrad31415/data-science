@@ -1,5 +1,0 @@
-"0","gam = gam(Outstate~Private + "
-"0","            s(Room.Board,3) + s(Personal,3) + s(Terminal,3) + "
-"0","            s(S.F.Ratio,3) + s(perc.alumni,3) + s(Expend,3) + s(Grad.Rate,3) ,data=Train)"
-"0","par(mfrow = c(3, 3))"
-"0","plot(gam, se=TRUE ,col =""blue "")"
